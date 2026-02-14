@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar ✨</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            background: radial-gradient(circle at center, #0a0a12 0%, #000 100%);
+            font-family: 'Inter', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; color: #fff;
+        }
+
+        /* Resplandor suave que sigue al ratón */
+        #cursor-glow {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.07) 0%, transparent 60%);
+            pointer-events: none; z-index: 1;
+        }
+
+        .header { margin-top: 40px; text-align: center; z-index: 10; }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2.5rem; margin: 0; color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+
+        .score-board { font-size: 0.7rem; margin-top: 10px; opacity: 0.4; letter-spacing: 3px; text-transform: uppercase; }
+
+        #game-container { position: relative; margin-top: 10px; z-index: 5; }
+
+        #victory-panel {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center; opacity: 0; pointer-events: none;
+            transition: all 1s ease; width: 450px; z-index: 100;
+        }
+
+        #victory-panel.show { opacity: 1; pointer-events: auto; }
+        #victory-panel p { 
+            font-size: 1.2rem; font-weight: 100; line-height: 1.8; 
+            color: #fff; margin-bottom: 35px; letter-spacing: 1px;
+        }
+
+        .spotify-wrapper {
+            margin-top: auto; margin-bottom: 30px;
+            width: 300px; height: 80px; z-index: 10; opacity: 0.5;
+            transition: opacity 0.8s ease;
+        }
+        .spotify-wrapper:hover { opacity: 1; }
+
+        .btn {
+            background: none; border: 1px solid rgba(255,255,255,0.3);
+            color: #fff; padding: 12px 30px; border-radius: 50px;
+            cursor: pointer; font-family: 'Inter'; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 2px; transition: 0.4s;
+        }
+        .btn:hover { background: #fff; color: #000; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+
+        #retryBtn { border-color: rgba(255,255,255,0.6); font-style: italic; text-transform: none; }
+
+        canvas#starCanvas { cursor: crosshair; }
+    </style>
+</head>
+<body>
+
+    <div id="cursor-glow"></div>
+
+    <div class="header">
+        <h1>Mi creador de estrellas</h1>
+        <div class="score-board">Conexión: <span id="score">0</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="starCanvas"></canvas>
+        <div id="victory-panel">
+            <p id="phrase"></p>
+            <div id="controls">
+                <button id="nextBtn" class="btn">Continuar</button>
+                <button id="retryBtn" class="btn" style="display: none;">"Te volvería a elegir en todos los universos"</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="spotify-wrapper">
+        <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/TU_ID_AQUI?utm_source=generator&theme=0" width="100%" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    </div>
+
+<script>
+    const canvas = document.getElementById('starCanvas');
+    const ctx = canvas.getContext('2d');
+    const glow = document.getElementById('cursor-glow');
+    const scoreElement = document.getElementById('score');
+    const victoryPanel = document.getElementById('victory-panel');
+    const phraseElement = document.getElementById('phrase');
+    const nextBtn = document.getElementById('nextBtn');
+    const retryBtn = document.getElementById('retryBtn');
+
+    let score = 0; let currentLevel = 0; let connectedIndices = []; 
+    let gameParticles = []; let bgParticles = []; let isGameFinished = false;
+
+    window.addEventListener('mousemove', e => {
+        glow.style.setProperty('--x', e.clientX + 'px');
+        glow.style.setProperty('--y', e.clientY + 'px');
+    });
+
+    function init() {
+        canvas.width = 800; canvas.height = 500;
+        for(let i=0; i<50; i++) bgParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 1.5,
+            opacity: Math.random()
+        });
+    }
+    init();
+
+    const levels = [
+        { phrase: "Para quien buscaba a su hermanita y terminó creando un hogar", color: "#fff", points: [{x:400,y:100},{x:400,y:180},{x:250,y:130},{x:200,y:200},{x:400,y:250},{x:600,y:200},{x:550,y:130},{x:400,y:180},{x:400,y:400},{x:400,y:480}] },
+        { phrase: "Todos merecen una segunda oportunidad", color: "#fff", points: [{x:400,y:400},{x:280,y:330},{x:250,y:200},{x:300,y:100},{x:380,y:150},{x:400,y:130},{x:420,y:150},{x:500,y:100},{x:550,y:200},{x:520,y:330},{x:400,y:400}] },
+        { phrase: "Encontramos ternura donde menos lo esperamos", color: "#fff", points: [{x:250,y:100},{x:350,y:180},{x:300,y:250},{x:320,y:400},{x:480,y:400},{x:500,y:250},{x:450,y:180},{x:550,y:100},{x:450,y:180},{x:350,y:180},{x:400,y:300}] },
+        { phrase: "No hay océano tan grande para medir el amor que siento por ti", color: "#fff", points: [{x:150,y:300},{x:250,y:400},{x:450,y:400},{x:650,y:300},{x:750,y:250},{x:750,y:350},{x:650,y:300},{x:500,y:200},{x:300,y:200},{x:150,y:300}] },
+        { phrase: "Hasta el corazón más helado se derrite a tu lado", color: "#fff", points: [{x:200,y:150},{x:300,y:220},{x:500,y:220},{x:650,y:100},{x:550,y:300},{x:650,y:450},{x:500,y:400},{x:350,y:400},{x:250,y:320},{x:200,y:280},{x:300,y:220}] },
+        { phrase: "Para el primer amigo que hice en la academia", color: "#fff", points: [{x:400,y:100},{x:350,y:150},{x:400,y:200},{x:450,y:150},{x:400,y:100},{x:400,y:350},{x:300,y:250},{x:400,y:350},{x:500,y:250},{x:400,y:350},{x:350,y:480},{x:400,y:350},{x:450,y:480}] },
+        { phrase: "Gracias por esperarnos tantos años", color: "#fff", points: [{x:300,y:100},{x:250,y:200},{x:350,y:250},{x:500,y:200},{x:600,y:250},{x:500,y:350},{x:350,y:400},{x:250,y:300},{x:400,y:300},{x:600,y:400}] },
+        { phrase: "Para el hombre que dejó todo por la mujer que amaba", color: "#fff", points: [{x:320,y:250},{x:320,y:170},{x:400,y:130},{x:480,y:170},{x:480,y:250},{x:400,y:290},{x:320,y:250},{x:400,y:290},{x:320,y:330},{x:320,y:410},{x:400,y:450},{x:480,y:410},{x:480,y:330},{x:400,y:290}] },
+        { phrase: "La máquina con más amor que he conocido", color: "#fff", points: [{x:400,y:400},{x:250,y:250},{x:300,y:130},{x:400,y:190},{x:500,y:130},{x:550,y:250},{x:400,y:400}] },
+        { phrase: "Quien me salvó de mi misma", color: "#fff", points: [{x:550,y:450},{x:450,y:400},{x:400,y:300},{x:300,y:100},{x:350,y:150},{x:400,y:300},{x:380,y:450},{x:450,y:400},{x:500,y:450}] },
+        { phrase: "Los soberanos se miden más por lo que hacen en crisis que por lo que hacen cuando todo esta en Paz", color: "#fff", points: [{x:250,y:400},{x:550,y:400},{x:600,y:200},{x:500,y:300},{x:400,y:100},{x:300,y:300},{x:200,y:200},{x:250,y:400}] },
+        { phrase: "Gracias por volver a nuestro nido", color: "#fff", points: [{x:200,y:400},{x:280,y:320},{x:260,y:300},{x:300,y:340},{x:280,y:320},{x:600,y:100}] },
+        { phrase: "Para el hombre que quemaría el mundo por hacer feliz a su amada", color: "#fff", points: [{x:300,y:300},{x:500,y:300},{x:550,y:200},{x:600,y:50},{x:500,y:230},{x:400,y:270},{x:300,y:230},{x:200,y:50},{x:250,y:200},{x:300,y:300},{x:400,y:400}] },
+        { phrase: "El amor puede sanar a las personas", color: "#fff", points: [{x:300,y:300},{x:500,y:300},{x:550,y:250},{x:600,y:150},{x:500,y:200},{x:500,y:300},{x:550,y:350},{x:500,y:300},{x:300,y:300},{x:250,y:250},{x:200,y:150},{x:300,y:200},{x:300,y:300},{x:250,y:350},{x:400,y:300}] },
+        { phrase: "Con quien mi corazón finalmente dejó de correr", color: "#fff", points: [{x:400,y:250},{x:500,y:170},{x:400,y:250},{x:550,y:250},{x:400,y:250},{x:500,y:330},{x:400,y:250},{x:300,y:170},{x:400,y:250},{x:250,y:250},{x:400,y:250},{x:300,y:330},{x:400,y:250}] }
+    ];
+
+    class Particle {
+        constructor(x, y, isSpecial = false) {
+            this.x = x; this.y = y;
+            this.size = Math.random() * 2 + 1;
+            this.speedX = (Math.random() - 0.5) * 3;
+            this.speedY = (Math.random() - 0.5) * 3;
+            this.alpha = 1;
+            this.color = isSpecial ? "#fff" : "rgba(255,255,255,0.8)";
+        }
+        update() { this.x += this.speedX; this.y += this.speedY; this.alpha -= 0.015; }
+        draw() {
+            ctx.save(); ctx.globalAlpha = this.alpha;
+            ctx.shadowBlur = 10; ctx.shadowColor = "#fff";
+            ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Estrellas de fondo estáticas
+        bgParticles.forEach(p => {
+            ctx.fillStyle = `rgba(255,255,255,${p.opacity * Math.abs(Math.sin(Date.now()*0.001))})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        });
+
+        if(!isGameFinished) {
+            const level = levels[currentLevel];
+            const pts = level.points;
+            if (connectedIndices.length > 1) {
+                ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.shadowBlur = 5; ctx.shadowColor = "#fff";
+                for (let i = 0; i < connectedIndices.length; i++) {
+                    const p = pts[connectedIndices[i]];
+                    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+                }
+                ctx.stroke();
+            }
+            pts.forEach((p, index) => {
+                const isDone = connectedIndices.includes(index);
+                const isNext = index === connectedIndices.length;
+                ctx.save();
+                ctx.shadowBlur = (isDone || isNext) ? 15 : 0; ctx.shadowColor = "#fff";
+                ctx.fillStyle = isDone ? "#fff" : (isNext ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.1)");
+                ctx.beginPath(); ctx.arc(p.x, p.y, isDone ? 3.5 : 2.5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            });
+        }
+        gameParticles = gameParticles.filter(p => p.alpha > 0);
+        gameParticles.forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animate);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if(isGameFinished) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        const pts = levels[currentLevel].points;
+        const index = connectedIndices.length;
+        if(index < pts.length) {
+            const p = pts[index];
+            if(Math.hypot(mouseX - p.x, mouseY - p.y) < 30) {
+                connectedIndices.push(index);
+                score += 50; scoreElement.innerText = score;
+                for(let i=0; i<15; i++) gameParticles.push(new Particle(p.x, p.y));
+                if (connectedIndices.length === pts.length) {
+                    setTimeout(() => {
+                        phraseElement.innerText = levels[currentLevel].phrase;
+                        victoryPanel.classList.add('show');
+                    }, 500);
+                }
+            }
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        victoryPanel.classList.remove('show');
+        if(currentLevel === levels.length - 1) {
+            isGameFinished = true;
+            setTimeout(() => {
+                phraseElement.innerText = "Feliz San Valentín. Gracias por crear estrellas a mi lado.";
+                nextBtn.style.display = "none";
+                retryBtn.style.display = "inline-block";
+                victoryPanel.classList.add('show');
+            }, 500);
+        } else {
+            currentLevel++; connectedIndices = [];
+        }
+    });
+
+    retryBtn.addEventListener('click', () => {
+        victoryPanel.classList.remove('show');
+        setTimeout(() => {
+            currentLevel = 0; connectedIndices = []; isGameFinished = false;
+            score = 0; scoreElement.innerText = score;
+            nextBtn.style.display = "inline-block";
+            retryBtn.style.display = "none";
+        }, 800);
+    });
+
+    animate();
+</script>
+</body>
+</html>
